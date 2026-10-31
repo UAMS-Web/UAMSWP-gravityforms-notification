@@ -1,8 +1,8 @@
 # Auto detect text files and perform LF normalization
 * text=auto
-/vendor/ export-ignore
-/tests/ export-ignore
-/tests-legacy/ export-ignore
-/phpunit.xml export-ignore
-/composer.json export-ignore
-/composer.lock export-ignore
+
+# Keep-list for the GitHub download: only what the plugin runs ships.
+# See .claude/rules/keep-the-download-to-what-runs.md
+/* export-ignore
+/.* export-ignore
+/uamswp-gravityforms-notification.php -export-ignore
