@@ -10,8 +10,8 @@
 
 declare(strict_types=1);
 
-use function Brain\Monkey\setUp;
 use function Brain\Monkey\Functions\when;
+use function Brain\Monkey\setUp;
 use function Brain\Monkey\tearDown;
 
 require_once __DIR__.'/../vendor/autoload.php';
@@ -59,10 +59,10 @@ setUp();
 
 when('plugin_dir_path')->justReturn(__DIR__.'/../');
 when('plugin_dir_url')->justReturn('https://example.test/wp-content/plugins/'.basename(dirname(__DIR__)).'/');
-when('plugin_basename')->alias(static fn($file): string => basename(dirname($file)).'/'.basename($file));
+when('plugin_basename')->alias(static fn ($file): string => basename(dirname($file)).'/'.basename($file));
 when('is_multisite')->justReturn(false);
-when('get_site_option')->alias(static fn($key, $default = false) => $default);
-when('get_option')->alias(static fn($key, $default = false) => $default);
+when('get_site_option')->alias(static fn ($key, $default = false) => $default);
+when('get_option')->alias(static fn ($key, $default = false) => $default);
 when('update_option')->justReturn();
 when('register_activation_hook')->justReturn();
 when('register_deactivation_hook')->justReturn();
@@ -95,6 +95,5 @@ if (is_readable(__DIR__.'/../uamswp-gravityforms-notification.php')) {
 }
 
 tearDown();
-
 
 // cspell:ignore ABSPATH autoloaded

@@ -5,14 +5,13 @@ declare(strict_types=1);
 use Rector\CodeQuality\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector;
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\Property\RemoveUselessVarTagRector;
+use Rector\Php81\Rector\Array_\ArrayToFirstClassCallableRector;
 use Rector\Php81\Rector\Property\ReadOnlyPropertyRector;
 use Rector\Php82\Rector\Class_\ReadOnlyClassRector;
 use Rector\TypeDeclaration\Rector\ClassMethod\AddParamFromDimFetchKeyUseRector;
 use Rector\TypeDeclaration\Rector\ClassMethod\StrictArrayParamDimFetchRector;
-use Rector\ValueObject\PhpVersion;
-
 // WordPress: the first-class-callable rule is sweep-only (see `$sweepOnlyRules`).
-use Rector\Php81\Rector\Array_\ArrayToFirstClassCallableRector;
+use Rector\ValueObject\PhpVersion;
 
 // Rector configuration, from the shared code-quality templates. The structure
 // is shared across the repositories that run Rector; keep it when editing.
