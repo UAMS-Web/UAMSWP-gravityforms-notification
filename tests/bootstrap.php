@@ -90,10 +90,28 @@ if (! defined('WPINC')) {
     define('WPINC', 'wp-includes');
 }
 
+/*
+ * The plugin file ends the process when its direct-access guard misfires. Pest
+ * would then exit 0 with no output and no tests run, which reads as a pass.
+ * Fail loudly instead: this shutdown function exits non-zero unless the
+ * bootstrap reached its last line.
+ */
+$GLOBALS['uamswp_gform_bootstrap_completed'] = false;
+
+register_shutdown_function(static function (): void {
+    if (! $GLOBALS['uamswp_gform_bootstrap_completed']) {
+        fwrite(STDERR, 'The Unit bootstrap ended before it finished: the plugin file ended the process.'.PHP_EOL);
+
+        exit(1);
+    }
+});
+
 if (is_readable(__DIR__.'/../uamswp-gravityforms-notification.php')) {
     require_once __DIR__.'/../uamswp-gravityforms-notification.php';
 }
 
 tearDown();
+
+$GLOBALS['uamswp_gform_bootstrap_completed'] = true;
 
 // cspell:ignore ABSPATH autoloaded
