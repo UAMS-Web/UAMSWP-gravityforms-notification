@@ -5,6 +5,7 @@ Plugin URI: https://www.uams.edu
 Description: UAMSWP append url of where the form was submitted
 Author: Todd McKee, MEd
 Version: 0.1
+Requires PHP: 8.2
 */
 
 // If this file is called directly, abort.
