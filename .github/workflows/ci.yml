@@ -8,12 +8,13 @@ name: CI
 # composite action in .github/actions/setup, copied from the code-quality skill.
 #
 # Jobs present today: Composer lock freshness, the synced-files and no-emoji checks, the
-# aggregate-needs check, and the PHPUnit Unit suite. Not present yet, each added with its
-# own ticket: Pint, Rector and PHPStan (code-quality adoption), the Integration suite
-# (needs a WordPress core copy and MySQL), and Pest (the PHP floor moves to 8.2 first).
+# aggregate-needs check, the floor lint on PHP 8.2, and the Pest Unit suite. Not present yet,
+# each added with its own ticket: Pint, Rector and PHPStan (code-quality adoption) and the
+# Integration suite (needs a WordPress core copy and MySQL).
 #
-# PHP 8.4 because the committed composer.lock resolves doctrine/instantiator, which requires
-# it; the setup action's default is the version to change when the lock or the floor moves.
+# The supported floor is PHP 8.2 and development runs on PHP 8.4: Pest 5 needs PHPUnit 13,
+# which needs PHP 8.4.1. The setup action's default PHP is the development version; the
+# floor is guarded by the lint-floor job, which parses every shipped file on PHP 8.2.
 #
 # The last job, `CI`, is the one check a ruleset requires from this workflow. It `needs:`
 # every other job in this file, runs `if: always()`, and fails unless every needed job reports
@@ -95,8 +96,25 @@ jobs:
       # fixed required name is reported by no job. Allow-list: .github/aggregate-needs-allow.json.
       - run: node .claude/skills/code-quality/scripts/check-aggregate-needs.mjs
 
-  phpunit:
-    name: PHPUnit (Unit suite)
+  lint-floor:
+    name: Floor lint (PHP 8.2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      # Parses every shipped PHP file with the floor PHP. vendor/, tests/ and dot-folders
+      # are left out: the suite runs only on the development PHP and may use its syntax.
+      # xargs exits non-zero when any file fails to parse.
+      - run: find . -path ./vendor -prune -o -path ./tests -prune -o -path './.*' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  pest:
+    name: Pest (Unit suite)
     needs: [composer-validate, synced-files]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -104,14 +122,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
-      # The Unit suite needs no WordPress and no database.
+      # The Unit suite needs no WordPress and no database. Pest 5 on PHPUnit 13.
       - run: composer test:unit
 
   # The one check a ruleset requires from this workflow. Keep `needs:` listing every other
   # job in the file.
   ci:
     name: CI
-    needs: [composer-validate, synced-files, no-emoji, aggregate-needs, phpunit]
+    needs: [composer-validate, synced-files, no-emoji, aggregate-needs, lint-floor, pest]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
