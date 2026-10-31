@@ -8,7 +8,12 @@
     },
     "require-dev": {
         "brain/monkey": "^2.7",
-        "pestphp/pest": "^5.3"
+        "laravel/pint": "^1.32",
+        "pestphp/pest": "^5.3",
+        "php-stubs/wordpress-stubs": "^6.8",
+        "phpstan/phpstan": "^2.3",
+        "rector/rector": "^2.8",
+        "szepeviktor/phpstan-wordpress": "^2.0"
     },
     "config": {
         "platform": {
@@ -26,13 +31,27 @@
             "@test:integration"
         ],
         "test:unit": "pest",
-        "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml"
+        "test:integration": "@php tests/Integration/vendor/bin/phpunit --configuration tests/Integration/phpunit.xml",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "refactor": "rector process",
+        "refactor:sweep": "rector process --config=rector-sweep.php",
+        "test:refactor": "rector process --dry-run",
+        "test:refactor:sweep": "rector process --dry-run --config=rector-sweep.php",
+        "pint": "pint",
+        "test:pint": "pint --test"
     },
     "scripts-descriptions": {
         "setup:integration": "Install the Integration suite's own Composer setup (PHPUnit 9.6, wp-phpunit, the polyfills).",
         "test": "Run both suites, each in its own process, so the Unit suite never sees WordPress.",
         "test:unit": "Run the Pest suite that needs no WordPress and no database.",
-        "test:integration": "Run the PHPUnit 9.6 suite that boots WordPress through wp-phpunit against the test database."
+        "test:integration": "Run the PHPUnit 9.6 suite that boots WordPress through wp-phpunit against the test database.",
+        "stan": "Run PHPStan (WordPress extension) at the configured level.",
+        "refactor": "Apply the gating Rector rules.",
+        "refactor:sweep": "Apply every Rector rule, including the sweep-only ones. Review the diff.",
+        "test:refactor": "Report what the gating Rector rules would change.",
+        "test:refactor:sweep": "Report what the sweep Rector profile would change.",
+        "pint": "Reformat first-party PHP with Pint.",
+        "test:pint": "Check formatting with Pint without changing files."
     },
     "autoload-dev": {
         "psr-4": {
