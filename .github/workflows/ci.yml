@@ -8,9 +8,9 @@ name: CI
 # composite action in .github/actions/setup, copied from the code-quality skill.
 #
 # Jobs present today: Composer lock freshness, the synced-files and no-emoji checks, the
-# aggregate-needs check, the floor lint on PHP 8.2, and the Pest Unit suite. Not present yet,
-# each added with its own ticket: Pint, Rector and PHPStan (code-quality adoption) and the
-# Integration suite (needs a WordPress core copy and MySQL).
+# aggregate-needs check, the floor lint on PHP 8.2, Pint, Rector, PHPStan, and the Pest Unit
+# suite. Not present yet, added with its own ticket: the Integration suite (needs a WordPress
+# core copy and MySQL).
 #
 # The supported floor is PHP 8.2 and development runs on PHP 8.4: Pest 5 needs PHPUnit 13,
 # which needs PHP 8.4.1. The setup action's default PHP is the development version; the
@@ -113,6 +113,43 @@ jobs:
       # xargs exits non-zero when any file fails to parse.
       - run: find . -path ./vendor -prune -o -path ./tests -prune -o -path './.*' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
 
+  pint:
+    name: Pint (formatting)
+    needs: [composer-validate, synced-files]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - run: composer test:pint
+
+  rector:
+    name: Rector (gating rules)
+    needs: [composer-validate, synced-files]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      - run: composer test:refactor
+
+  phpstan:
+    name: PHPStan (WordPress)
+    needs: [composer-validate, synced-files]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+
+      # phpstan.neon.dist scans the Integration suite's WordPress test classes, which must
+      # be installed first.
+      - run: composer setup:integration
+
+      - run: composer stan
+
   pest:
     name: Pest (Unit suite)
     needs: [composer-validate, synced-files]
@@ -129,7 +166,7 @@ jobs:
   # job in the file.
   ci:
     name: CI
-    needs: [composer-validate, synced-files, no-emoji, aggregate-needs, lint-floor, pest]
+    needs: [composer-validate, synced-files, no-emoji, aggregate-needs, lint-floor, pint, rector, phpstan, pest]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
