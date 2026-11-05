@@ -4,7 +4,7 @@ Plugin Name: UAMSWP Gravity Forms Notification
 Plugin URI: https://www.uams.edu
 Description: UAMSWP append url of where the form was submitted
 Author: Todd McKee, MEd
-Version: 0.1
+Version: 0.1.1
 Requires PHP: 8.2
 */
 
