@@ -1,5 +1,5 @@
 # Auto detect text files and perform LF normalization
-* text=auto
+* text=auto eol=lf
 
 # Keep-list for the GitHub download: only what the plugin runs ships.
 # See .claude/rules/keep-the-download-to-what-runs.md

@@ -1,0 +1,43 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+    - vendor/pestphp/pest/extension.neon
+
+parameters:
+    # The PHP range the code must parse and run on: the 8.2 floor to the 8.4 dev PHP.
+    phpVersion:
+        min: 80200
+        max: 80400
+
+    level: 3
+
+    paths:
+        - uamswp-gravityforms-notification.php
+        - tests
+
+    # The Integration suite has its own Composer setup; its vendor/ is not ours.
+    excludePaths:
+        analyse:
+            - tests/Integration/vendor
+
+    # Indexed for symbols, not analyzed. Needs `composer setup:integration`.
+    scanDirectories:
+        - tests/Integration/vendor/wp-phpunit/wp-phpunit/includes
+        - tests/Integration/vendor/yoast/phpunit-polyfills/src
+
+    # Checkout-scoped cache (git-ignored).
+    tmpDir: .phpstan
+
+    ignoreErrors:
+        # `$this` in a closure passed to `uses()->beforeEach()` is bound by Pest at runtime.
+        -
+            identifier: variable.undefined
+            message: '#^Undefined variable: \$this$#'
+            path: tests/Pest.php
+            reportUnmatched: false
+        # Pest routes its public API through classes it tags @internal.
+        -
+            identifier: method.internalClass
+            message: '#of internal class Pest\\#'
+            path: tests
+            reportUnmatched: false
