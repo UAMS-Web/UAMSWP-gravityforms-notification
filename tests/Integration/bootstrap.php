@@ -12,6 +12,9 @@
 
 declare(strict_types=1);
 
+// Validate explicit database credentials before loading any integration code.
+require_once __DIR__.'/wp-tests-config.php';
+
 if (! is_readable(__DIR__.'/vendor/autoload.php')) {
     fwrite(
         STDERR,
@@ -27,14 +30,14 @@ require_once __DIR__.'/vendor/autoload.php';
 /*
  * Locate WordPress. Unset, WP_TESTS_ABSPATH defaults to the install this
  * checkout sits in (<wordpress>/wp-content/plugins/<plugin>/tests/Integration),
- * five levels up. Exported so wp-tests-config.php reads the same answer.
+ * five levels up. The configuration resolves ABSPATH for the installer too.
  *
  * A checkout that is not inside a WordPress install must set WP_TESTS_ABSPATH
  * to a core copy, for example one fetched with:
  *   wp core download --path=/tmp/wordpress
  *   WP_TESTS_ABSPATH=/tmp/wordpress composer test:integration
  */
-$wordpress = rtrim((string) (getenv('WP_TESTS_ABSPATH') ?: dirname(__DIR__, 5)), '/').'/';
+$wordpress = ABSPATH;
 
 putenv('WP_TESTS_ABSPATH='.$wordpress);
 
@@ -50,12 +53,13 @@ if (! is_readable($wordpress.'wp-settings.php')) {
 }
 
 /*
- * Refuse to run against the working install's database.
+ * Reject a known working-database match as a secondary, best-effort check.
  *
- * WordPress' test installer DROPS EVERY TABLE it finds and rebuilds the schema.
- * Pointed at the development site's database it destroys it, with no prompt.
+ * This recognizes a literal DB_NAME in the core-local config only. Parent
+ * configs and dynamic PHP values may not be detected. Restricted database
+ * grants, not configuration parsing, isolate the destructive test-table setup.
  */
-$testDatabase = (string) (getenv('WP_TESTS_DB_NAME') ?: 'uamswp_gform_notification_tests');
+$testDatabase = DB_NAME;
 $liveConfig = $wordpress.'wp-config.php';
 
 if (is_readable($liveConfig)) {
@@ -69,8 +73,8 @@ if (is_readable($liveConfig)) {
         fwrite(
             STDERR,
             PHP_EOL."Refusing to run: WP_TESTS_DB_NAME is '{$testDatabase}', the database the".PHP_EOL
-            ."WordPress install at {$wordpress} uses. The test installer drops every table it".PHP_EOL
-            .'finds. Point WP_TESTS_DB_NAME at a database you can afford to lose.'.PHP_EOL.PHP_EOL
+            ."WordPress install at {$wordpress} uses. The test installer rebuilds its test tables.".PHP_EOL
+            .'Use a disposable database and an account restricted to that database.'.PHP_EOL.PHP_EOL
         );
 
         exit(1);
