@@ -3,28 +3,43 @@
 /**
  * Configuration for the WordPress test bootstrap.
  *
- * Committed, and carries nothing machine-specific: every value falls back to a
- * default that works against a local MySQL with a passwordless root user (as
- * Laravel Herd's is), and each can be overridden with the WP_TESTS_* variable
- * named beside it.
+ * Require explicit credentials for an account restricted to a disposable test
+ * database. No database connection is made by this configuration file.
  *
- * The database named here is DROPPED AND REBUILT on every run. It must exist
- * (`mysql -u root -e 'CREATE DATABASE uamswp_gform_notification_tests'`) and must never be
- * a database anything else uses; tests/Integration/bootstrap.php refuses to run
- * when it matches the surrounding install's.
+ * WordPress rebuilds its test tables on every run. Database-scoped grants are
+ * the isolation boundary; the bootstrap's live-database check is best effort.
+ * See the README for provisioning and grant verification before running tests.
  *
  * Multisite: run with WP_MULTISITE=1, wp-phpunit's own switch.
  */
 
 declare(strict_types=1);
 
-// Resolved and exported by tests/Integration/bootstrap.php.
+// Refuse incomplete credentials before WordPress can start its installer.
+foreach (['WP_TESTS_DB_NAME', 'WP_TESTS_DB_USER', 'WP_TESTS_DB_PASSWORD', 'WP_TESTS_DB_HOST'] as $variable) {
+    $value = getenv($variable);
+
+    if ($value === false || trim($value) === '') {
+        fwrite(STDERR, "Refusing to run: set {$variable} explicitly for a restricted test database account.".PHP_EOL);
+
+        exit(1);
+    }
+}
+
+// Reject the privileged account previously used by the default configuration.
+if (strtolower(trim((string) getenv('WP_TESTS_DB_USER'))) === 'root') {
+    fwrite(STDERR, 'Refusing to run: WP_TESTS_DB_USER must be a restricted test database account, not root.'.PHP_EOL);
+
+    exit(1);
+}
+
+// Resolve the core path for both the harness and WordPress' installer process.
 define('ABSPATH', rtrim((string) (getenv('WP_TESTS_ABSPATH') ?: dirname(__DIR__, 5)), '/').'/');
 
-define('DB_NAME', getenv('WP_TESTS_DB_NAME') ?: 'uamswp_gform_notification_tests');
-define('DB_USER', getenv('WP_TESTS_DB_USER') ?: 'root');
-define('DB_PASSWORD', getenv('WP_TESTS_DB_PASSWORD') ?: '');
-define('DB_HOST', getenv('WP_TESTS_DB_HOST') ?: '127.0.0.1');
+define('DB_NAME', (string) getenv('WP_TESTS_DB_NAME'));
+define('DB_USER', (string) getenv('WP_TESTS_DB_USER'));
+define('DB_PASSWORD', (string) getenv('WP_TESTS_DB_PASSWORD'));
+define('DB_HOST', (string) getenv('WP_TESTS_DB_HOST'));
 define('DB_CHARSET', 'utf8');
 define('DB_COLLATE', '');
 
@@ -42,4 +57,4 @@ define('WP_PHP_BINARY', 'php');
  */
 define('WP_HTTP_BLOCK_EXTERNAL', true);
 
-// cspell:ignore ABSPATH passwordless wptests
+// cspell:ignore ABSPATH wptests
