@@ -34,12 +34,17 @@ if (( ${#missing[@]} )); then
 fi
 
 echo "[${SECONDS}s] Checking PHP 8.4 and extensions"
+php_packages=(php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip)
 missing=()
-for package in php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip; do
+for package in "${php_packages[@]}"; do
     if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
         missing+=("$package")
     fi
 done
+# The locked PHPUnit toolchain requires at least PHP 8.4.1.
+if ! /usr/bin/php8.4 -r 'exit(version_compare(PHP_VERSION, "8.4.1", ">=") ? 0 : 1);' 2>/dev/null; then
+    missing=("${php_packages[@]}")
+fi
 if (( ${#missing[@]} )); then
     # Use the distribution-specific PHP repository and its packaged signing key.
     curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 \
@@ -51,15 +56,17 @@ if (( ${#missing[@]} )); then
     "${as_root[@]}" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends "${missing[@]}"
 fi
 
-# Composer and later login shells must resolve the same development PHP binary.
-if [[ "$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;' 2>/dev/null || true)" != 8.4 ]]; then
-    "${as_root[@]}" update-alternatives --set php /usr/bin/php8.4
-fi
+# Dedicated links take precedence over preexisting user executables without replacing them.
+tool_bin="$HOME/.local/share/uamswp-gravityforms-notification/bin"
+mkdir -p -- "$tool_bin"
+ln -sfn /usr/bin/php8.4 "$tool_bin/php"
+export PATH="$tool_bin:$PATH"
+php -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 4 && version_compare(PHP_VERSION, "8.4.1", ">=") ? 0 : 1);'
 php --version
 
 echo "[${SECONDS}s] Checking Composer"
 composer_version=2.11.1
-if [[ "$(composer --no-ansi --version 2>/dev/null || true)" != "Composer version $composer_version "* ]]; then
+if [[ "$(/usr/local/bin/composer --no-ansi --version 2>/dev/null || true)" != "Composer version $composer_version "* ]]; then
     curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 \
         https://getcomposer.org/installer -o "$scratch/composer-setup.php"
     expected="$(curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 https://composer.github.io/installer.sig)"
@@ -72,7 +79,22 @@ if [[ "$(composer --no-ansi --version 2>/dev/null || true)" != "Composer version
     php "$scratch/composer-setup.php" --version="$composer_version" --install-dir="$scratch" --filename=composer
     "${as_root[@]}" install -m 0755 "$scratch/composer" /usr/local/bin/composer
 fi
+ln -sfn /usr/local/bin/composer "$tool_bin/composer"
+hash -r
+[[ "$(composer --no-ansi --version)" == "Composer version $composer_version "* ]]
 composer --no-ansi --version
+
+# Persist the same selection for non-interactive login shells inside this checkout.
+profile_marker="# UAMSWP Gravity Forms Notification orb tools: $repo_root"
+# Profile variables must expand at login, not while generating the hook.
+# shellcheck disable=SC2016
+if ! grep -Fqx -- "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+    if [[ ! -f "$HOME/.bash_profile" && -f "$HOME/.profile" ]]; then
+        printf '%s\n' '[[ ! -f "$HOME/.profile" ]] || source "$HOME/.profile"' >> "$HOME/.bash_profile"
+    fi
+    printf '\n%s\ncase "$PWD/" in\n    %q/*) export PATH=%q:"$PATH" ;;\nesac\n' \
+        "$profile_marker" "$repo_root" "$tool_bin" >> "$HOME/.bash_profile"
+fi
 
 # Install dependencies only. Never boot WordPress, run tests, or configure a database.
 echo "[${SECONDS}s] Installing locked development dependencies"

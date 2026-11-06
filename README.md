@@ -6,6 +6,9 @@ Amp runs [`.agents/setup`](.agents/setup) when preparing a fresh Debian 12 orb. 
 8.4 and its required extensions, verifies and installs Composer 2.11.1 when needed, and installs
 both committed Composer lockfiles. Repeating setup reuses installed system packages and lets
 Composer reconcile dependencies with the lockfiles. PHP patch updates remain on the 8.4 series.
+An installed PHP older than 8.4.1 is upgraded to satisfy the locked development tools.
+Repository-specific links select PHP and Composer ahead of existing user executables during
+setup and in later Bash login shells within the checkout, without replacing those executables.
 
 Setup installs development dependencies only. It does not install WordPress core or a database
 server, set database credentials, connect to a database, or execute tests. The isolated integration
