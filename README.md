@@ -1,5 +1,18 @@
 # UAMSWP Gravity Forms Notification
 
+## Amp orb setup
+
+Amp runs [`.agents/setup`](.agents/setup) when preparing a fresh Debian 12 orb. It installs PHP
+8.4 and its required extensions, verifies and installs Composer 2.11.1 when needed, and installs
+both committed Composer lockfiles. Repeating setup reuses installed system packages and lets
+Composer reconcile dependencies with the lockfiles. PHP patch updates remain on the 8.4 series.
+
+Setup installs development dependencies only. It does not install WordPress core or a database
+server, set database credentials, connect to a database, or execute tests. The isolated integration
+dependencies are installed so PHPStan can scan their symbols, not to boot WordPress. No resume
+hook or authenticated service is needed. The executable is specific to orbs; macOS and Windows
+developers should use their existing PHP 8.4 environment and the Composer commands below.
+
 ## Tests
 
 ```bash

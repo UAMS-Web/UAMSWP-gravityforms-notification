@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd -- "$repo_root"
+
+# System packages below target Amp's Debian 12 orb image, not developer machines.
+# shellcheck source=/dev/null
+source /etc/os-release
+if [[ "$ID" != debian || "$VERSION_ID" != 12 ]]; then
+    echo 'Orb setup requires Debian 12.' >&2
+    exit 1
+fi
+
+as_root=()
+if (( EUID != 0 )); then
+    as_root=(sudo -n)
+fi
+
+scratch="$(mktemp -d)"
+trap 'rm -rf -- "$scratch"' EXIT
+apt_options=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=60)
+
+echo "[${SECONDS}s] Checking system prerequisites"
+missing=()
+for package in ca-certificates curl unzip; do
+    if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+        missing+=("$package")
+    fi
+done
+if (( ${#missing[@]} )); then
+    "${as_root[@]}" apt-get "${apt_options[@]}" update
+    "${as_root[@]}" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends "${missing[@]}"
+fi
+
+echo "[${SECONDS}s] Checking PHP 8.4 and extensions"
+missing=()
+for package in php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip; do
+    if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+        missing+=("$package")
+    fi
+done
+if (( ${#missing[@]} )); then
+    # Use the distribution-specific PHP repository and its packaged signing key.
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 \
+        https://packages.sury.org/debsuryorg-archive-keyring.deb -o "$scratch/keyring.deb"
+    "${as_root[@]}" dpkg -i "$scratch/keyring.deb"
+    printf '%s\n' 'deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ bookworm main' \
+        | "${as_root[@]}" tee /etc/apt/sources.list.d/php.list >/dev/null
+    "${as_root[@]}" apt-get "${apt_options[@]}" update
+    "${as_root[@]}" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends "${missing[@]}"
+fi
+
+# Composer and later login shells must resolve the same development PHP binary.
+if [[ "$(php -r 'echo PHP_MAJOR_VERSION,".",PHP_MINOR_VERSION;' 2>/dev/null || true)" != 8.4 ]]; then
+    "${as_root[@]}" update-alternatives --set php /usr/bin/php8.4
+fi
+php --version
+
+echo "[${SECONDS}s] Checking Composer"
+composer_version=2.11.1
+if [[ "$(composer --no-ansi --version 2>/dev/null || true)" != "Composer version $composer_version "* ]]; then
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 \
+        https://getcomposer.org/installer -o "$scratch/composer-setup.php"
+    expected="$(curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 https://composer.github.io/installer.sig)"
+    actual="$(sha384sum "$scratch/composer-setup.php")"
+    actual="${actual%% *}"
+    if [[ "$actual" != "$expected" ]]; then
+        echo 'Composer installer checksum mismatch.' >&2
+        exit 1
+    fi
+    php "$scratch/composer-setup.php" --version="$composer_version" --install-dir="$scratch" --filename=composer
+    "${as_root[@]}" install -m 0755 "$scratch/composer" /usr/local/bin/composer
+fi
+composer --no-ansi --version
+
+# Install dependencies only. Never boot WordPress, run tests, or configure a database.
+echo "[${SECONDS}s] Installing locked development dependencies"
+export COMPOSER_ALLOW_SUPERUSER=1
+composer install --no-interaction --prefer-dist --no-progress --no-scripts
+composer --working-dir=tests/Integration install --no-interaction --prefer-dist --no-progress --no-scripts
+composer check-platform-reqs --lock
+composer --working-dir=tests/Integration check-platform-reqs --lock
+echo "[${SECONDS}s] Orb setup complete; database-backed tests remain unconfigured"
