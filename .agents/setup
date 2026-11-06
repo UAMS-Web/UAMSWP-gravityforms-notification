@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd -- "$repo_root"
+
+# System packages below target Amp's Debian 12 orb image, not developer machines.
+# shellcheck source=/dev/null
+source /etc/os-release
+if [[ "$ID" != debian || "$VERSION_ID" != 12 ]]; then
+    echo 'Orb setup requires Debian 12.' >&2
+    exit 1
+fi
+
+as_root=()
+if (( EUID != 0 )); then
+    as_root=(sudo -n)
+fi
+
+scratch="$(mktemp -d)"
+trap 'rm -rf -- "$scratch"' EXIT
+apt_options=(-o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=60)
+
+echo "[${SECONDS}s] Checking system prerequisites"
+missing=()
+for package in ca-certificates curl unzip; do
+    if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+        missing+=("$package")
+    fi
+done
+if (( ${#missing[@]} )); then
+    "${as_root[@]}" apt-get "${apt_options[@]}" update
+    "${as_root[@]}" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends "${missing[@]}"
+fi
+
+echo "[${SECONDS}s] Checking PHP 8.4 and extensions"
+php_packages=(php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip)
+missing=()
+for package in "${php_packages[@]}"; do
+    if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+        missing+=("$package")
+    fi
+done
+# The locked PHPUnit toolchain requires at least PHP 8.4.1.
+if ! /usr/bin/php8.4 -r 'exit(version_compare(PHP_VERSION, "8.4.1", ">=") ? 0 : 1);' 2>/dev/null; then
+    missing=("${php_packages[@]}")
+fi
+if (( ${#missing[@]} )); then
+    # Use the distribution-specific PHP repository and its packaged signing key.
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 \
+        https://packages.sury.org/debsuryorg-archive-keyring.deb -o "$scratch/keyring.deb"
+    "${as_root[@]}" dpkg -i "$scratch/keyring.deb"
+    printf '%s\n' 'deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ bookworm main' \
+        | "${as_root[@]}" tee /etc/apt/sources.list.d/php.list >/dev/null
+    "${as_root[@]}" apt-get "${apt_options[@]}" update
+    "${as_root[@]}" env DEBIAN_FRONTEND=noninteractive apt-get "${apt_options[@]}" install -y --no-install-recommends "${missing[@]}"
+fi
+
+# Dedicated links take precedence over preexisting user executables without replacing them.
+tool_bin="$HOME/.local/share/uamswp-gravityforms-notification/bin"
+mkdir -p -- "$tool_bin"
+ln -sfn /usr/bin/php8.4 "$tool_bin/php"
+export PATH="$tool_bin:$PATH"
+php -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 4 && version_compare(PHP_VERSION, "8.4.1", ">=") ? 0 : 1);'
+php --version
+
+echo "[${SECONDS}s] Checking Composer"
+composer_version=2.11.1
+if [[ "$(/usr/local/bin/composer --no-ansi --version 2>/dev/null || true)" != "Composer version $composer_version "* ]]; then
+    curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 \
+        https://getcomposer.org/installer -o "$scratch/composer-setup.php"
+    expected="$(curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 2 https://composer.github.io/installer.sig)"
+    actual="$(sha384sum "$scratch/composer-setup.php")"
+    actual="${actual%% *}"
+    if [[ "$actual" != "$expected" ]]; then
+        echo 'Composer installer checksum mismatch.' >&2
+        exit 1
+    fi
+    php "$scratch/composer-setup.php" --version="$composer_version" --install-dir="$scratch" --filename=composer
+    "${as_root[@]}" install -m 0755 "$scratch/composer" /usr/local/bin/composer
+fi
+ln -sfn /usr/local/bin/composer "$tool_bin/composer"
+hash -r
+[[ "$(composer --no-ansi --version)" == "Composer version $composer_version "* ]]
+composer --no-ansi --version
+
+# Persist the same selection for non-interactive login shells inside this checkout.
+profile_marker="# UAMSWP Gravity Forms Notification orb tools: $repo_root"
+# Profile variables must expand at login, not while generating the hook.
+# shellcheck disable=SC2016
+if ! grep -Fqx -- "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+    if [[ ! -f "$HOME/.bash_profile" && -f "$HOME/.profile" ]]; then
+        printf '%s\n' '[[ ! -f "$HOME/.profile" ]] || source "$HOME/.profile"' >> "$HOME/.bash_profile"
+    fi
+    printf '\n%s\ncase "$PWD/" in\n    %q/*) export PATH=%q:"$PATH" ;;\nesac\n' \
+        "$profile_marker" "$repo_root" "$tool_bin" >> "$HOME/.bash_profile"
+fi
+
+# Install dependencies only. Never boot WordPress, run tests, or configure a database.
+echo "[${SECONDS}s] Installing locked development dependencies"
+export COMPOSER_ALLOW_SUPERUSER=1
+composer install --no-interaction --prefer-dist --no-progress --no-scripts
+composer --working-dir=tests/Integration install --no-interaction --prefer-dist --no-progress --no-scripts
+composer check-platform-reqs --lock
+composer --working-dir=tests/Integration check-platform-reqs --lock
+echo "[${SECONDS}s] Orb setup complete; database-backed tests remain unconfigured"

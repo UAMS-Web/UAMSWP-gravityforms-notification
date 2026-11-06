@@ -3,3 +3,4 @@
 /.phpstan/
 /tests/Integration/vendor/
 /tests/Integration/.phpunit.result.cache
+/.amp/portals/
