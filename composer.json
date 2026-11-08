@@ -27,6 +27,7 @@
     "scripts": {
         "setup:integration": "@composer install --working-dir=tests/Integration",
         "lint:floor": "@php scripts/lint-floor.php",
+        "mutate": "pest --mutate --covered-only --path=uamswp-gravityforms-notification.php",
         "test": [
             "@test:unit",
             "@test:integration"
@@ -43,6 +44,7 @@
     },
     "scripts-descriptions": {
         "setup:integration": "Install the Integration suite's own Composer setup (PHPUnit 9.6, wp-phpunit, the polyfills).",
+        "mutate": "Run Pest mutation testing on the plugin file, over the code the Unit suite covers. The 7 mutants in the file-scope guard and hook registration run at load, before coverage starts, and are pinned by tests/Unit/DirectAccessGuardTest.php and tests/Integration/NotificationFilterTest.php instead (#18, #29).",
         "lint:floor": "Parse every shipped PHP file with the PHP named in LINT_PHP (default: php), the supported floor.",
         "test": "Run both suites, each in its own process, so the Unit suite never sees WordPress.",
         "test:unit": "Run the Pest suite that needs no WordPress and no database.",
