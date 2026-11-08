@@ -5,9 +5,14 @@ name: CI
 # The lint and unit chain is the shared one, `UAMS-Web/uams-ci-workflows`, called by the
 # `checks` job. One definition serves every UAMS-Web repository, so this plugin does not
 # carry a copy that drifts. The call switches on the two jobs only a plugin runs
-# (`floor-lint`, `download-archive`), runs on Linux only, leaves mutation testing off, and
+# (`floor-lint`, `download-archive`), runs on Linux only, mutates the plugin file, and
 # runs the plugin's unit suite as `composer test:unit`. `phpcs` stays off: this plugin has no
 # PHPCS configuration. The chain's own header lists every input and its default.
+#
+# The `mutate` job runs `composer mutate` on the plugin file: a pull request or push mutates it
+# only when it changes, and a manual run mutates it whole. The script passes `--covered-only`
+# because the file's guard and hook registration run at load, before coverage starts; their 7
+# mutants are pinned by other tests (see the script's description in `composer.json`).
 #
 # `integration` stays here as a plain job beside the call, because its MySQL service and
 # WordPress download are not in the chain (UAMS-Web/uams-claude-skills#607). It runs the
@@ -49,7 +54,7 @@ jobs:
     uses: UAMS-Web/uams-ci-workflows/.github/workflows/ci.yml@v0.9.0
     with:
       linux-only: true
-      mutate: false
+      mutate-paths: uamswp-gravityforms-notification.php
       floor-lint: true
       floor-lint-php: '8.2'
       download-archive: true
