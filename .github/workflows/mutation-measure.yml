@@ -1,0 +1,42 @@
+name: Mutation measure
+
+# One-off Linux measurement of the plugin's mutation population (issue #29). Not meant to merge.
+
+on:
+  push:
+    branches: [29-linux-mutation-measure]
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: pcov
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Preflight
+        run: |
+          echo "commit=$(git rev-parse HEAD)"
+          uname -a
+          cat /etc/os-release | head -2
+          php -v | head -1
+          php -r 'echo "pcov loaded=", extension_loaded("pcov") ? "yes" : "no", " enabled=", ini_get("pcov.enabled"), " version=", phpversion("pcov"), PHP_EOL;'
+          composer show 'pestphp/*' | awk '{print $1, $2}'
+          git rev-parse HEAD:uamswp-gravityforms-notification.php
+      - name: Unit suite
+        run: composer test:unit
+      - name: Mutation run
+        run: vendor/bin/pest --mutate --path=uamswp-gravityforms-notification.php --colors=never 2>&1 | tee mutate.log
+      - name: Mutation run summary
+        if: always()
+        run: grep -nE 'Mutations|Score|UNTESTED|MISSED|Not covered|covered|Tests:' mutate.log || true
