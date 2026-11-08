@@ -10,7 +10,7 @@ Version: 0.1.1
 Requires PHP: 8.2
 */
 
-// If this file is called directly, abort.
+// If this file is called directly, abort. (probe)
 if (! defined('WPINC')) {
     exit;
 }
