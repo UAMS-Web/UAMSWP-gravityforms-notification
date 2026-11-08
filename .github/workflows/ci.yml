@@ -10,7 +10,7 @@ name: CI
 # PHPCS configuration. The chain's own header lists every input and its default.
 #
 # The `mutate` job runs `composer mutate` on the plugin file: a pull request or push mutates it
-# only when it changes, and a manual run mutates it whole. The script passes `--covered-only`
+# only when it changes, and a manual or scheduled run mutates it whole. The script passes `--covered-only`
 # because the file's guard and hook registration run at load, before coverage starts; their 7
 # mutants are pinned by other tests (see the script's description in `composer.json`).
 #
@@ -37,6 +37,11 @@ on:
   pull_request:
   push:
     branches: [master]
+  # The full mutation pass, weekly: Monday 09:17 UTC. A scheduled run mutates the whole plugin file
+  # under the chain's default full-run timeout, which is how decay no pull request touches is found.
+  # Scheduled runs read this file from the default branch.
+  schedule:
+    - cron: '17 9 * * 1'
   workflow_dispatch:
 
 # A new push to a pull request cancels that pull request's stale run. Every other run gets a
