@@ -24,7 +24,7 @@ MySQL test database; see `tests/Integration/wp-tests-config.php`.
 
 Pull requests to `master` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml). It calls the
 shared chain in `UAMS-Web/uams-ci-workflows` (pinned to a release tag) through one `checks` job, and
-its `CI` job needs that call and fails unless it succeeds, so `CI` is the check to require. The chain
+its `CI` job needs that call and the `integration` job and fails unless both succeed, so `CI` is the check to require. The chain
 covers Composer lock freshness, the synced-files and no-emoji checks, Pint, Rector, PHPStan, the Unit
 suite, the floor lint on PHP 8.2 and the download-archive check. The `Attribution footer` and
-`Closing keywords` workflows check the pull request body. The Integration suite does not run remotely yet.
+`Closing keywords` workflows check the pull request body. The `integration` job runs the Integration suite in single-site and multisite mode against a MySQL service, as an account restricted to one disposable database.

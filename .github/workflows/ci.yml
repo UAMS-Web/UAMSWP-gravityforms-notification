@@ -7,13 +7,17 @@ name: CI
 # carry a copy that drifts. The call switches on the two jobs only a plugin runs
 # (`floor-lint`, `download-archive`), runs on Linux only, leaves mutation testing off, and
 # runs the plugin's unit suite as `composer test:unit`. `phpcs` stays off: this plugin has no
-# PHPCS configuration. The chain's own header lists every input and its default. The
-# Integration suite (WordPress core and MySQL) is not part of the chain and does not run here.
+# PHPCS configuration. The chain's own header lists every input and its default.
+#
+# `integration` stays here as a plain job beside the call, because its MySQL service and
+# WordPress download are not in the chain (UAMS-Web/uams-claude-skills#607). It runs the
+# Integration suite in single-site and multisite mode against an account that holds grants on
+# one disposable database only, never `root`.
 #
 # The last job, `CI`, is the one check a ruleset requires from this workflow (with the two
 # pull-request-body checks, `Attribution footer` and `Closing keywords`). It `needs:` the
-# call, runs `if: always()`, and fails unless the call reports `success`: a `skipped` or
-# `cancelled` call fails it. The call ends in a `Chain result` job that needs every job in
+# call and `integration`, runs `if: always()`, and fails unless every needed job reports
+# `success`: a `skipped` or `cancelled` job fails it. The call ends in a `Chain result` job that needs every job in
 # the chain, so `checks` is `success` only when each of them succeeded. Adding a plain job
 # here means adding it to the `needs:` list of `CI`; the `aggregate-needs` job in the chain
 # fails the pull request when one is missing. Do not rename `CI`, and do not rename `checks`
@@ -52,10 +56,56 @@ jobs:
       download-archive-command: node .claude/skills/download-archive-check/check-download-archive.mjs
       pest-command: composer test:unit
 
-  # The one check a ruleset requires from this workflow. Keep `needs:` naming the call.
+  integration:
+    name: Integration (${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [single, multisite]
+    services:
+      mysql:
+        image: mysql:8.0
+        # The image creates MYSQL_USER with every privilege on MYSQL_DATABASE and nothing else.
+        env:
+          MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+          MYSQL_DATABASE: uamswp_gform_notification_tests
+          MYSQL_USER: notification_test_runner
+          MYSQL_PASSWORD: ci-disposable-test-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      WP_TESTS_ABSPATH: /tmp/wordpress
+      WP_TESTS_DB_HOST: 127.0.0.1
+      WP_TESTS_DB_NAME: uamswp_gform_notification_tests
+      WP_TESTS_DB_USER: notification_test_runner
+      WP_TESTS_DB_PASSWORD: ci-disposable-test-password
+      WP_MULTISITE: ${{ matrix.mode == 'multisite' && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          integration: 'true'
+      # The WordPress core copy the suite boots, matching wp-phpunit in
+      # tests/Integration/composer.lock.
+      - name: Download WordPress
+        env:
+          WP_VERSION: '7.1.3'
+        run: |
+          mkdir -p "$WP_TESTS_ABSPATH"
+          curl -fsSL "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" | tar -xz -C "$WP_TESTS_ABSPATH" --strip-components=1
+      - run: composer test:integration
+
+  # The one check a ruleset requires from this workflow. Keep `needs:` naming the call and `integration`.
   ci:
     name: CI
-    needs: [checks]
+    needs: [checks, integration]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
