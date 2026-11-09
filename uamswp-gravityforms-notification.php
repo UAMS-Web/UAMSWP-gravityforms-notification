@@ -16,7 +16,13 @@ if (! defined('WPINC')) {
 }
 
 add_filter('gform_notification', 'uamswp_gform_notification_url', 10, 1);
-function uamswp_gform_notification_url($notification)
+/**
+ * Append the submitted-at signature to a Gravity Forms notification message.
+ *
+ * @param  array<string, mixed>  $notification  The notification being sent.
+ * @return array<string, mixed>
+ */
+function uamswp_gform_notification_url(array $notification): array
 {
     // append a signature to the existing notification
     // message with .=
