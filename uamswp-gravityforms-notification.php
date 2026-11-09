@@ -15,8 +15,8 @@ if (! defined('WPINC')) {
     exit;
 }
 
-add_filter('gform_notification', 'uamswp_gform_notification_url', 10, 3);
-function uamswp_gform_notification_url($notification, $form, $entry)
+add_filter('gform_notification', 'uamswp_gform_notification_url', 10, 1);
+function uamswp_gform_notification_url($notification)
 {
     // append a signature to the existing notification
     // message with .=

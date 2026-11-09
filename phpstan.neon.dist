@@ -9,7 +9,7 @@ parameters:
         min: 80200
         max: 80400
 
-    level: 3
+    level: 4
 
     paths:
         - uamswp-gravityforms-notification.php
