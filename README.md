@@ -14,11 +14,75 @@ suite run on PHP 8.4 with Pest 5 and Brain Monkey; `config.platform.php` pins th
 
 ```bash
 composer setup:integration
-composer test:integration
 ```
 
 It needs a WordPress install to boot (this checkout inside one, or `WP_TESTS_ABSPATH`) and a
-MySQL test database; see `tests/Integration/wp-tests-config.php`.
+disposable MySQL test database with a restricted account. Complete the following setup
+before running `composer test:integration`; see `tests/Integration/wp-tests-config.php`.
+
+### Isolate the integration database
+
+The WordPress test installer rebuilds its test tables on every run. Never use a working
+site's database or credentials. Prefer a separate local or CI database instance. The
+integration configuration requires all four `WP_TESTS_DB_*` values below and refuses
+missing, blank, or `root` credentials. No passwordless default is provided.
+
+An administrator must provision a dedicated account with privileges on exactly one
+disposable database. The following SQL is a provisioning example, not a command run by
+the repository. Replace the password placeholder privately before execution. The example
+database name deliberately contains no SQL grant wildcard characters (`_` or `%`).
+
+```sql
+CREATE DATABASE `gformnotificationtests`
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER 'gform_notification_test'@'localhost'
+    IDENTIFIED BY '<generated-password>';
+
+GRANT ALL PRIVILEGES ON `gformnotificationtests`.*
+    TO 'gform_notification_test'@'localhost';
+
+SHOW GRANTS FOR 'gform_notification_test'@'localhost';
+```
+
+Before provisioning, check that neither the database nor the account is in use. Do not
+reuse an application account or add `GRANT OPTION`, global privileges, or privileged
+roles. The account host must match the actual connection method; containers and TCP
+connections can require a different host entry. Audit the effective account's grants,
+including inherited roles, rather than assuming an account name proves isolation.
+
+Configure these variables in the environment that runs the integration suite:
+
+| Variable | Example or requirement |
+| --- | --- |
+| `WP_TESTS_DB_NAME` | `gformnotificationtests`, containing nothing worth retaining |
+| `WP_TESTS_DB_USER` | `gform_notification_test`, restricted to that database |
+| `WP_TESTS_DB_PASSWORD` | Nonempty secret supplied privately, never committed |
+| `WP_TESTS_DB_HOST` | `localhost`, or the explicit disposable database endpoint |
+| `WP_TESTS_ABSPATH` | Path to a WordPress core copy when the checkout is outside WordPress |
+
+Using the test account and the same connection endpoint, verify isolation before running
+WordPress:
+
+1. Run `SELECT CURRENT_USER();` and `SHOW GRANTS;` and confirm the effective account has
+   no access outside the disposable database. Inspect any active roles as well.
+2. Create a temporary probe table inside the disposable database, insert and read a row,
+   then drop that probe table. This verifies the required test-table permissions.
+3. Have an administrator create a non-sensitive probe in a second disposable database.
+   Confirm the test account cannot read that probe. Never use production data as a probe.
+4. Only after these checks pass, run `composer test:integration`.
+
+Database permissions are the safety boundary. The bootstrap's additional live-database
+comparison recognizes only a literal `DB_NAME` in a core-local `wp-config.php`; it does
+not reliably recognize parent-directory configurations or dynamic PHP values. A non-root
+username and explicit credentials alone do not prove its grants are restricted. Unknown
+live configurations therefore do not establish safety, and the repository does not execute
+the working site's configuration to discover them.
+
+The configuration-refusal tests run in the Unit suite using fake credentials and child
+PHP processes. They do not connect to a database. Real grant verification and integration
+execution require the separately provisioned disposable environment; neither is performed
+by the current remote CI workflow.
 
 ## Remote gate
 
