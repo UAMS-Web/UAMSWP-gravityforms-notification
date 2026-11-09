@@ -9,6 +9,8 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Assert;
+
 use function Brain\Monkey\setUp;
 use function Brain\Monkey\tearDown;
 
@@ -28,7 +30,11 @@ uses()
         setUp();
     })
     ->afterEach(function (): void {
-        $this->addToAssertionCount(Mockery::getContainer()->mockery_getExpectationCount());
+        // addToAssertionCount() is internal to PHPUnit, so count the expectations through an assertion.
+        $expectations = Mockery::getContainer()->mockery_getExpectationCount();
+        if ($expectations > 0) {
+            Assert::assertSame($expectations, Mockery::getContainer()->mockery_getExpectationCount());
+        }
 
         tearDown();
     })
