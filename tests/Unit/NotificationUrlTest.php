@@ -20,7 +20,20 @@ it('keeps the existing message first and puts the signature after a newline', fu
     $result = uamswp_gform_notification_url(['message' => '']);
 
     expect($result['message'])->toBe(UAMSWP_GFORM_SIGNATURE)
-        ->and($result['message'][0])->toBe("\n");
+        ->and($result['message'])->toStartWith("\n");
+});
+
+it('treats an absent message as empty', function (): void {
+    $result = uamswp_gform_notification_url(['subject' => 'Subject']);
+
+    expect($result['message'])->toBe(UAMSWP_GFORM_SIGNATURE)
+        ->and($result['subject'])->toBe('Subject');
+});
+
+it('treats a non-string message as empty', function (): void {
+    $result = uamswp_gform_notification_url(['message' => null]);
+
+    expect($result['message'])->toBe(UAMSWP_GFORM_SIGNATURE);
 });
 
 it('leaves every other notification key unchanged', function (): void {

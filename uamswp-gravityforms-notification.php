@@ -24,9 +24,11 @@ add_filter('gform_notification', 'uamswp_gform_notification_url', 10, 1);
  */
 function uamswp_gform_notification_url(array $notification): array
 {
-    // append a signature to the existing notification
-    // message with .=
-    $notification['message'] .= "\n".'<font style="font-family: sans-serif; font-size:12px;">Submitted at {embed_url}</font>';
+    // read the existing message, treating an absent or non-string one as empty
+    $message = is_string($notification['message'] ?? null) ? $notification['message'] : '';
+
+    // append the signature to the message
+    $notification['message'] = $message."\n".'<font style="font-family: sans-serif; font-size:12px;">Submitted at {embed_url}</font>';
 
     return $notification;
 }
