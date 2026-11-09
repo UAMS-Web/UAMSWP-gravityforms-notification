@@ -17,13 +17,13 @@ final class NotificationFilterTest extends IntegrationTestCase
         $this->assertSame(10, has_filter('gform_notification', 'uamswp_gform_notification_url'));
     }
 
-    public function test_the_registered_callback_accepts_three_arguments(): void
+    public function test_the_registered_callback_accepts_one_argument(): void
     {
         global $wp_filter;
 
         $callbacks = $wp_filter['gform_notification']->callbacks[10];
 
-        $this->assertSame(3, $callbacks['uamswp_gform_notification_url']['accepted_args']);
+        $this->assertSame(1, $callbacks['uamswp_gform_notification_url']['accepted_args']);
     }
 
     public function test_applying_the_filter_appends_the_signature(): void
