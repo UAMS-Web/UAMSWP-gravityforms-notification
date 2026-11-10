@@ -17,19 +17,27 @@ final class NotificationFilterTest extends IntegrationTestCase
         $this->assertSame(10, has_filter('gform_notification', 'uamswp_gform_notification_url'));
     }
 
-    public function test_the_registered_callback_accepts_three_arguments(): void
+    public function test_the_registered_callback_accepts_one_argument(): void
     {
         global $wp_filter;
 
-        $callbacks = $wp_filter['gform_notification']->callbacks[10];
+        $this->assertIsArray($wp_filter);
+        $hook = $wp_filter['gform_notification'] ?? null;
+        $this->assertInstanceOf(\WP_Hook::class, $hook);
 
-        $this->assertSame(3, $callbacks['uamswp_gform_notification_url']['accepted_args']);
+        $callbacks = $hook->callbacks[10] ?? null;
+        $this->assertIsArray($callbacks);
+        $callback = $callbacks['uamswp_gform_notification_url'] ?? null;
+        $this->assertIsArray($callback);
+
+        $this->assertSame(1, $callback['accepted_args'] ?? null);
     }
 
     public function test_applying_the_filter_appends_the_signature(): void
     {
         $result = apply_filters('gform_notification', ['message' => 'Hello'], [], []);
 
+        $this->assertIsArray($result);
         $this->assertSame(
             "Hello\n".'<font style="font-family: sans-serif; font-size:12px;">Submitted at {embed_url}</font>',
             $result['message'],

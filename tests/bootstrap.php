@@ -59,7 +59,7 @@ setUp();
 
 when('plugin_dir_path')->justReturn(__DIR__.'/../');
 when('plugin_dir_url')->justReturn('https://example.test/wp-content/plugins/'.basename(dirname(__DIR__)).'/');
-when('plugin_basename')->alias(static fn ($file): string => basename(dirname($file)).'/'.basename($file));
+when('plugin_basename')->alias(static fn (string $file): string => basename(dirname($file)).'/'.basename($file));
 when('is_multisite')->justReturn(false);
 when('get_site_option')->alias(static fn ($key, $default = false) => $default);
 when('get_option')->alias(static fn ($key, $default = false) => $default);
