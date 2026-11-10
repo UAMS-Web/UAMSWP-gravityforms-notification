@@ -108,3 +108,13 @@ its `CI` job needs that call and the `integration` job and fails unless both suc
 covers Composer lock freshness, the synced-files and no-emoji checks, Pint, Rector, PHPStan, the Unit
 suite, the floor lint on PHP 8.2 and the download-archive check. The `Attribution footer` and
 `Closing keywords` workflows check the pull request body. The `integration` job runs the Integration suite in single-site and multisite mode against a MySQL service, as an account restricted to one disposable database.
+
+## Credits
+
+Developed and maintained by UAMS Web Services.
+
+Developers:
+
+- Josh Daugherty
+- Todd McKee
+- Brent Passmore
