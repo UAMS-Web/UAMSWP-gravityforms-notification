@@ -7,7 +7,7 @@ Plugin URI: https://www.uams.edu
 Description: UAMSWP append url of where the form was submitted
 Author: UAMS Web Services
 Author URI: https://communications.uams.edu/web/
-Version: 0.1.1
+Version: 0.2.0
 Requires PHP: 8.2
 */
 
