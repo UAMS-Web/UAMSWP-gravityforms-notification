@@ -8,6 +8,7 @@ Description: UAMSWP append url of where the form was submitted
 Author: UAMS Web Services
 Author URI: https://communications.uams.edu/web/
 Version: 0.2.0
+Requires at least: 6.8
 Requires PHP: 8.2
 */
 
