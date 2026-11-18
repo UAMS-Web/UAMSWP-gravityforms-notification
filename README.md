@@ -1,5 +1,25 @@
 # UAMSWP Gravity Forms Notification
 
+A WordPress plugin that adds a `Submitted at` line, naming the page a form was submitted from, to
+the end of every Gravity Forms notification email. It has no settings.
+
+The documentation (a walkthrough, the reference and troubleshooting) is in the
+[wiki](https://github.com/UAMS-Web/UAMSWP-gravityforms-notification/wiki), published from
+[`docs/wiki/`](docs/wiki/Home.md).
+
+## Requirements
+
+- PHP 8.2 or later
+- WordPress 6.8 or later
+- Gravity Forms, active on the same site
+
+## Installation
+
+1. Download a release from the
+   [releases page](https://github.com/UAMS-Web/UAMSWP-gravityforms-notification/releases).
+2. Upload it under *Plugins*, *Add New Plugin*, *Upload Plugin*.
+3. Activate it on the site, or network-activate it on a multisite network.
+
 ## Amp orb setup
 
 Amp runs [`.agents/setup`](.agents/setup) when preparing a fresh Debian 12 orb. It installs PHP
